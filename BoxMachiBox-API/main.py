@@ -1,6 +1,7 @@
 """
 BoxMachiBox F1 Prediction API
 FastAPI backend for podium predictions
+Version 0.2.0 - Enhanced driver/circuit display
 """
 
 from fastapi import FastAPI, HTTPException
@@ -14,7 +15,7 @@ import numpy as np
 app = FastAPI(
     title="BoxMachiBox F1 API",
     description="AI-powered F1 podium predictions with 93.89% accuracy",
-    version="1.0.0"
+    version="0.2.0"
 )
 
 # Enable CORS
@@ -36,19 +37,80 @@ except Exception as e:
     print(f"❌ Error loading model: {e}")
     model = None
 
-# Data
-DRIVERS = [
-    "Max Verstappen", "Lando Norris", "Charles Leclerc", "Lewis Hamilton",
-    "George Russell", "Carlos Sainz", "Oscar Piastri", "Fernando Alonso",
-    "Sergio Perez", "Pierre Gasly", "Lance Stroll", "Yuki Tsunoda"
-]
+# ========== 2025 F1 DRIVER-TEAM MAPPING (FROM OFFICIAL STANDINGS) ==========
+DRIVER_TEAM_MAP = {
+    # McLaren
+    "NOR": {"name": "Lando Norris", "team": "McLaren", "code": "MCL"},
+    "PIA": {"name": "Oscar Piastri", "team": "McLaren", "code": "MCL"},
+    
+    # Ferrari
+    "LEC": {"name": "Charles Leclerc", "team": "Ferrari", "code": "FER"},
+    "HAM": {"name": "Lewis Hamilton", "team": "Ferrari", "code": "FER"},
+    
+    # Red Bull Racing
+    "VER": {"name": "Max Verstappen", "team": "Red Bull Racing", "code": "RBR"},
+    "TSU": {"name": "Yuki Tsunoda", "team": "Red Bull Racing", "code": "RBR"},
+    
+    # Mercedes
+    "RUS": {"name": "George Russell", "team": "Mercedes", "code": "MER"},
+    "ANT": {"name": "Kimi Antonelli", "team": "Mercedes", "code": "MER"},
+    
+    # Aston Martin
+    "ALO": {"name": "Fernando Alonso", "team": "Aston Martin", "code": "AST"},
+    "STR": {"name": "Lance Stroll", "team": "Aston Martin", "code": "AST"},
+    
+    # Alpine
+    "GAS": {"name": "Pierre Gasly", "team": "Alpine", "code": "ALP"},
+    "COL": {"name": "Franco Colapinto", "team": "Alpine", "code": "ALP"},
+    
+    # Haas F1 Team
+    "OCO": {"name": "Esteban Ocon", "team": "Haas F1 Team", "code": "HAS"},
+    "BEA": {"name": "Oliver Bearman", "team": "Haas F1 Team", "code": "HAS"},
+    
+    # Racing Bulls
+    "HAD": {"name": "Isack Hadjar", "team": "Racing Bulls", "code": "RB"},
+    "LAW": {"name": "Liam Lawson", "team": "Racing Bulls", "code": "RB"},
+    
+    # Williams
+    "ALB": {"name": "Alexander Albon", "team": "Williams", "code": "WIL"},
+    "SAI": {"name": "Carlos Sainz", "team": "Williams", "code": "WIL"},
+    
+    # Kick Sauber
+    "HUL": {"name": "Nico Hulkenberg", "team": "Kick Sauber", "code": "SAU"},
+    "BOR": {"name": "Gabriel Bortoleto", "team": "Kick Sauber", "code": "SAU"},
+}
 
-CIRCUITS = [
-    "Bahrain", "Saudi Arabia", "Australia", "Japan", "China", "Miami",
-    "Imola", "Monaco", "Canada", "Spain", "Austria", "Silverstone",
-    "Hungary", "Belgium", "Netherlands", "Monza", "Azerbaijan",
-    "Singapore", "USA", "Mexico", "Brazil", "Las Vegas", "Qatar", "Abu Dhabi"
-]
+# ========== F1 CIRCUIT-TRACK MAPPING ==========
+CIRCUIT_TRACK_MAP = {
+    "Bahrain": "Bahrain International Circuit, Bahrain",
+    "Saudi Arabia": "Jeddah Corniche Circuit, Saudi Arabia",
+    "Australia": "Albert Park Circuit, Australia",
+    "Japan": "Suzuka Circuit, Japan",
+    "China": "Shanghai International Circuit, China",
+    "Miami": "Miami International Autodrome, Miami",
+    "Imola": "Autodromo Enzo e Dino Ferrari, Imola",
+    "Monaco": "Circuit de Monaco, Monaco",
+    "Canada": "Circuit Gilles Villeneuve, Canada",
+    "Spain": "Circuit de Barcelona-Catalunya, Spain",
+    "Austria": "Red Bull Ring, Austria",
+    "Silverstone": "Silverstone Circuit, Great Britain",
+    "Hungary": "Hungaroring, Hungary",
+    "Belgium": "Circuit de Spa-Francorchamps, Belgium",
+    "Netherlands": "Circuit Zandvoort, Netherlands",
+    "Monza": "Autodromo Nazionale di Monza, Italy",
+    "Azerbaijan": "Baku City Circuit, Azerbaijan",
+    "Singapore": "Marina Bay Street Circuit, Singapore",
+    "USA": "Circuit of the Americas, USA",
+    "Mexico": "Autódromo Hermanos Rodríguez, Mexico",
+    "Brazil": "Autódromo José Carlos Pace, Brazil",
+    "Las Vegas": "Las Vegas Street Circuit, USA",
+    "Qatar": "Lusail International Circuit, Qatar",
+    "Abu Dhabi": "Yas Marina Circuit, Abu Dhabi"
+}
+
+# Legacy lists for backward compatibility
+DRIVERS = [driver["name"] for driver in DRIVER_TEAM_MAP.values()]
+CIRCUITS = list(CIRCUIT_TRACK_MAP.keys())
 
 # Models
 class PredictionRequest(BaseModel):
@@ -72,8 +134,10 @@ def root():
     return {
         "status": "online",
         "service": "BoxMachiBox F1 API",
-        "version": "1.0.0",
-        "model_loaded": model is not None
+        "version": "0.2.0",
+        "model_loaded": model is not None,
+        "drivers_count": len(DRIVER_TEAM_MAP),
+        "circuits_count": len(CIRCUIT_TRACK_MAP)
     }
 
 @app.post("/api/predict", response_model=PredictionResponse)
@@ -128,11 +192,63 @@ def predict_podium(request: PredictionRequest):
 
 @app.get("/api/drivers")
 def get_drivers():
-    return {"count": len(DRIVERS), "drivers": DRIVERS}
+    """
+    Get all 2025 F1 drivers with team information
+    Returns drivers in format: "Driver Name | TEAM"
+    """
+    drivers_with_teams = [
+        f"{driver['name']} | {driver['code']}" 
+        for driver in DRIVER_TEAM_MAP.values()
+    ]
+    
+    # Sort alphabetically by driver name
+    drivers_with_teams.sort()
+    
+    return {
+        "count": len(drivers_with_teams),
+        "drivers": drivers_with_teams,
+        "season": "2025"
+    }
 
 @app.get("/api/circuits")
 def get_circuits():
-    return {"count": len(CIRCUITS), "circuits": CIRCUITS}
+    """
+    Get all F1 circuits with full track names
+    Returns circuits in format: "Track Name, Location"
+    """
+    circuits_with_names = [
+        CIRCUIT_TRACK_MAP[circuit] 
+        for circuit in CIRCUITS
+    ]
+    
+    return {
+        "count": len(circuits_with_names),
+        "circuits": circuits_with_names,
+        "season": "2025"
+    }
+
+@app.get("/api/standings/2025")
+def get_standings():
+    """
+    Get 2025 championship standings (placeholder)
+    """
+    # This would normally come from a database or API
+    return {
+        "season": "2025",
+        "last_updated": "2025-01-17",
+        "drivers": [
+            {"position": 1, "driver": "Lando Norris | MCL", "points": 423},
+            {"position": 2, "driver": "Max Verstappen | RBR", "points": 421},
+            {"position": 3, "driver": "Oscar Piastri | MCL", "points": 410},
+            {"position": 4, "driver": "George Russell | MER", "points": 319},
+            {"position": 5, "driver": "Charles Leclerc | FER", "points": 242}
+        ],
+        "constructors": [
+            {"position": 1, "team": "McLaren", "points": 833},
+            {"position": 2, "team": "Ferrari", "points": 652},
+            {"position": 3, "team": "Red Bull Racing", "points": 589}
+        ]
+    }
 
 @app.get("/api/model/info")
 def get_model_info():
@@ -140,7 +256,11 @@ def get_model_info():
         "model_type": "XGBoost",
         "accuracy": 93.89,
         "training_samples": 1838,
-        "version": "1.0.0"
+        "version": "0.2.0",
+        "last_updated": "2025-01-17",
+        "features": 47,
+        "training_data": "2022-2025 (R1-R20)",
+        "test_data": "2025 (R21-R24)"
     }
 
 if __name__ == "__main__":
