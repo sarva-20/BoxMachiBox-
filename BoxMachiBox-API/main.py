@@ -108,9 +108,14 @@ CIRCUIT_TRACK_MAP = {
     "Abu Dhabi": "Yas Marina Circuit, Abu Dhabi"
 }
 
-# Legacy lists for backward compatibility
-DRIVERS = [driver["name"] for driver in DRIVER_TEAM_MAP.values()]
-CIRCUITS = list(CIRCUIT_TRACK_MAP.keys())
+# Legacy lists for backward compatibility (accept both old and new formats)
+DRIVERS_LEGACY = [driver["name"] for driver in DRIVER_TEAM_MAP.values()]
+DRIVERS_ENHANCED = [f"{driver['name']} | {driver['code']}" for driver in DRIVER_TEAM_MAP.values()]
+DRIVERS = DRIVERS_LEGACY + DRIVERS_ENHANCED  # Accept both formats
+
+CIRCUITS_LEGACY = list(CIRCUIT_TRACK_MAP.keys())
+CIRCUITS_ENHANCED = list(CIRCUIT_TRACK_MAP.values())
+CIRCUITS = CIRCUITS_LEGACY + CIRCUITS_ENHANCED  # Accept both formats
 
 # Models
 class PredictionRequest(BaseModel):
