@@ -1,7 +1,7 @@
 """
 BoxMachiBox F1 Prediction API
 FastAPI backend for podium predictions
-Version 0.2.0 - Enhanced driver/circuit display
+Version 0.2.1 - Legacy compatibility with enhanced endpoints
 """
 
 from fastapi import FastAPI, HTTPException
@@ -15,7 +15,7 @@ import numpy as np
 app = FastAPI(
     title="BoxMachiBox F1 API",
     description="AI-powered F1 podium predictions with 93.89% accuracy",
-    version="0.2.0"
+    version="0.2.1"
 )
 
 # Enable CORS
@@ -108,7 +108,7 @@ CIRCUIT_TRACK_MAP = {
     "Abu Dhabi": "Yas Marina Circuit, Abu Dhabi"
 }
 
-# Legacy lists for backward compatibility (accept both old and new formats)
+# Validation lists - accept both formats for backward compatibility
 DRIVERS_LEGACY = [driver["name"] for driver in DRIVER_TEAM_MAP.values()]
 DRIVERS_ENHANCED = [f"{driver['name']} | {driver['code']}" for driver in DRIVER_TEAM_MAP.values()]
 DRIVERS = DRIVERS_LEGACY + DRIVERS_ENHANCED  # Accept both formats
@@ -139,7 +139,7 @@ def root():
     return {
         "status": "online",
         "service": "BoxMachiBox F1 API",
-        "version": "0.2.0",
+        "version": "0.2.1",
         "model_loaded": model is not None,
         "drivers_count": len(DRIVER_TEAM_MAP),
         "circuits_count": len(CIRCUIT_TRACK_MAP)
@@ -150,7 +150,7 @@ def predict_podium(request: PredictionRequest):
     if model is None:
         raise HTTPException(status_code=503, detail="Model not loaded")
     
-    # Validate
+    # Validate - accept both formats
     if request.driver not in DRIVERS:
         raise HTTPException(status_code=400, detail="Invalid driver")
     if request.circuit not in CIRCUITS:
@@ -198,15 +198,28 @@ def predict_podium(request: PredictionRequest):
 @app.get("/api/drivers")
 def get_drivers():
     """
-    Get all 2025 F1 drivers with team information
+    Get all 2025 F1 drivers (LEGACY FORMAT for frontend compatibility)
+    Returns driver names only: ["Lando Norris", "Carlos Sainz", ...]
+    """
+    driver_names = [driver["name"] for driver in DRIVER_TEAM_MAP.values()]
+    driver_names.sort()
+    
+    return {
+        "count": len(driver_names),
+        "drivers": driver_names,
+        "season": "2025"
+    }
+
+@app.get("/api/drivers/enhanced")
+def get_drivers_enhanced():
+    """
+    Get all 2025 F1 drivers with team codes
     Returns drivers in format: "Driver Name | TEAM"
     """
     drivers_with_teams = [
         f"{driver['name']} | {driver['code']}" 
         for driver in DRIVER_TEAM_MAP.values()
     ]
-    
-    # Sort alphabetically by driver name
     drivers_with_teams.sort()
     
     return {
@@ -218,12 +231,26 @@ def get_drivers():
 @app.get("/api/circuits")
 def get_circuits():
     """
+    Get all F1 circuits (LEGACY FORMAT for frontend compatibility)
+    Returns circuit names only: ["Monaco", "Silverstone", ...]
+    """
+    circuit_names = list(CIRCUIT_TRACK_MAP.keys())
+    
+    return {
+        "count": len(circuit_names),
+        "circuits": circuit_names,
+        "season": "2025"
+    }
+
+@app.get("/api/circuits/enhanced")
+def get_circuits_enhanced():
+    """
     Get all F1 circuits with full track names
     Returns circuits in format: "Track Name, Location"
     """
     circuits_with_names = [
         CIRCUIT_TRACK_MAP[circuit] 
-        for circuit in CIRCUITS
+        for circuit in CIRCUIT_TRACK_MAP.keys()
     ]
     
     return {
@@ -235,9 +262,8 @@ def get_circuits():
 @app.get("/api/standings/2025")
 def get_standings():
     """
-    Get 2025 championship standings (placeholder)
+    Get 2025 championship standings
     """
-    # This would normally come from a database or API
     return {
         "season": "2025",
         "last_updated": "2025-01-17",
@@ -261,7 +287,7 @@ def get_model_info():
         "model_type": "XGBoost",
         "accuracy": 93.89,
         "training_samples": 1838,
-        "version": "0.2.0",
+        "version": "0.2.1",
         "last_updated": "2025-01-17",
         "features": 47,
         "training_data": "2022-2025 (R1-R20)",
