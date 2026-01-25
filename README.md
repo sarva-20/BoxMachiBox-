@@ -35,6 +35,7 @@ In F1, "Box Box Box" is the iconic radio call for pit stops. BoxMachiBox combine
 | **🎨 Modern Web Interface** | Next.js frontend with dark F1 aesthetic and responsive design |
 | **📈 Live Standings** | Current 2025 championship standings integrated |
 | **💡 Race Insights** | Driver analysis, team performance, and strategic predictions |
+| **🏁 Full Grid Prediction** | Predict complete race results for all 20 drivers (P1-P20) |
 
 ---
 
